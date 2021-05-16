@@ -1,3 +1,3 @@
 # azurePythonOcrFunction
 
-Azure Cognitive Services OCR via Azure Function accepting http(s) url as OCR source
+Azure Cognitive Services OCR via Azure Function (Python) accepting http(s) url as OCR source
