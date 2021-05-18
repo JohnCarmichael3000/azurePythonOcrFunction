@@ -2,4 +2,4 @@
 
 azure-functions
 azure.cognitiveservices.vision.computervision
-
+Pillow
