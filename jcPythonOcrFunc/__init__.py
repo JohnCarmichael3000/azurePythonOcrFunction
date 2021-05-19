@@ -1,26 +1,43 @@
+#-------------------------------------------------------------------------
+# JOHN C
+#
+# THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
+# EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES 
+# OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+#----------------------------------------------------------------------------------
+# The example companies, organizations, products, domain names,
+# e-mail addresses, logos, people, places, and events depicted
+# herein are fictitious. No association with any real company,
+# organization, product, domain name, email address, logo, person,
+# places, or events is intended or should be inferred.
+#--------------------------------------------------------------------------
 import logging
+import os
+import time
 import azure.functions as func
 from azure.cognitiveservices.vision.computervision import ComputerVisionClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.computervision.models import OperationStatusCodes
 from datetime import datetime, timedelta
-import time
-import os
 
+#
+# Azure Function - demonstrate how to use Azure Cognitive Services Computer Vision (OCR) on an image located at a
+# specified URL
+#
+
+# Main Azure Function
 def main(req: func.HttpRequest) -> func.HttpResponse:
 
-    logging.info('Python HTTP trigger function processed a request.')
+    logging.info('FUNCTION jcPythonOcrFunc HTTP trigger started processing a request.')
 
     url  = req.params.get('imageUrl')
 
     if url:
         region = 'westus2'
-        key = os.getenv('jcVision1Key')
+        cognitive_services_subscription_key = os.getenv('jcVision1Key')
 
-        logging.info('before credentials')
-        credentials = CognitiveServicesCredentials(key)
+        credentials = CognitiveServicesCredentials(cognitive_services_subscription_key)
 
-        #create client
         client = ComputerVisionClient(
             endpoint="https://" + region + ".api.cognitive.microsoft.com/",
             credentials=credentials
@@ -42,7 +59,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             if result.status.lower () not in ['notstarted', 'running']:
                 break
             logging.info('Waiting for result...')
-            time.sleep(5)
+            time.sleep(1)
 
         # Get data
         if result.status == OperationStatusCodes.succeeded:
