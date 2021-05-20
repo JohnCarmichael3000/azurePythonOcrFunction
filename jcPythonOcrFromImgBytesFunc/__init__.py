@@ -43,14 +43,24 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     x2 = int(req.params.get('x2'))
     y2 = int(req.params.get('y2'))
 
+    minDimensionSize = 50
+    if (x2 - x1) < minDimensionSize:
+        print('FUNCTION X-Dimenion Minimum size problem')
+        x2 = (x1 + minDimensionSize)
+
+    if (y2 - y1) < minDimensionSize:
+        print('FUNCTION Y-Dimenion Minimum size problem')
+        y2 = (y1 + minDimensionSize)
+
     logging.info("FUNCTION sourceurl: " + sourceurl)
+    logging.info(f"x1={x1} y1={y1} x2={x2} y2={y2}")
 
     region = 'westus2'
     endpoint="https://" + region + ".api.cognitive.microsoft.com"
     cognitive_services_subscription_key = os.getenv('jcVision1Key')
 
     url = endpoint+"/vision/v3.1/read/analyze"
-    headers = {
+    headersToUse = {
         'Ocp-Apim-Subscription-Key': cognitive_services_subscription_key,
         'Content-Type': 'application/octet-stream'
     }
@@ -63,6 +73,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         errMsg = "Only " + str(accepted_ext) + " file types are accepted."
         raise logging.exception(errMsg)
 
+    logging.info("FUNCTION request.get sourceurl...")
     response = requests.get(sourceurl, timeout=120)
 
     with Image.open(io.BytesIO(response.content)) as im:
@@ -78,12 +89,22 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             #buf: <class '_io.BytesIO'>
             region.save(buf, file_ext.replace('.', ''))
 
+            dataToUse = buf.getvalue()
+            #dataToUse:  <class 'bytes'>
+
+            logging.info("dataToUse length: " + str(len(dataToUse)))
+
             #post request to endpoint with 
-            response = requests.request("POST", url, headers=headers, data=buf.getvalue())
+            response = requests.request("POST", url, headers=headersToUse, data=dataToUse)
+            logging.info("FUNCTION response.status_code: " + str(response.status_code))
+            if (response.status_code != 202):
+                logging.info("FUNCTION ERROR - response.content:\n" + str(response.content))
+                logging.info("FUNCTION ERROR - response.content:\n" + str(response.headers))
+                return func.HttpResponse("FUNCTION ERROR", status_code=response.status_code) 
             
             # get OCR result from endpoint, check for completion one per second 
             while True:
-                res = requests.request("GET", response.headers['Operation-Location'], headers=headers)
+                res = requests.request("GET", response.headers['Operation-Location'], headers=headersToUse)
                 status = res.json()['status']
 
                 if status == 'succeeded':

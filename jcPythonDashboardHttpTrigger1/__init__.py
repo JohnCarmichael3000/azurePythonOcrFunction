@@ -12,10 +12,12 @@
 # places, or events is intended or should be inferred.
 #--------------------------------------------------------------------------
 import io
+import json
 import logging
 import os
 import pytz
 import requests
+import time
 import azure.functions as func
 from azure.cosmosdb.table.tableservice import TableService
 from azure.storage.blob import BlobServiceClient, ContentSettings
@@ -32,32 +34,52 @@ from PIL import Image
 #  - Advanced Table Samples - https://github.com/Azure-Samples/storage-table-python-getting-started/blob/master/table_advanced_samples.py
 #
 
+counter = 0
+
 # Call function running on Azure that identifies text (OCR) in a specified region of an image located at a specified URL location
 def ocrFromUrlFunction(urlValue, x1Val, y1Val, x2Val, y2Val):
+    global counter
     ocrFuncUrl = f"{os.getenv('ocrFromImageUrlFncUrl')}&sourceurl={urlValue}&x1={x1Val}&y1={y1Val}&x2={x2Val}&y2={y2Val}"
-    logging.info("FUNCTION ocrFuncUrl: " + ocrFuncUrl)
+    counter += 1
+    logging.info(f"FUNCTION ocrFuncUrl ({counter}): {ocrFuncUrl}")
 
     response = requests.get(ocrFuncUrl, timeout=60)
     ocrFoundValue = response.text
-    return ocrFoundValue
+    time.sleep(2)
+    if (ocrFoundValue.find("404 Not Found") >= 0):
+        logging.info("Cognitive service returned 404 not found error")
+        return ""
+    else:
+        return ocrFoundValue
 
 def insertDataInTable(tableSvc, tableName, partitionKey, rowKey, itemValue):
     dataPoint = {'PartitionKey': partitionKey, 
             'RowKey': rowKey,
             'Name': itemValue}
-    tableSvc.insert_entity(tableName, dataPoint)
+    #tableSvc.insert_entity(tableName, dataPoint)
+    tableSvc.insert_or_replace_entity(tableName, dataPoint)
+
+def dataSave(tableSvc, imageUrl, tableName, parKey, rowKeyVal, x1Val, y1Val, x2Val, y2Val):
+    global counter
+    ocrValue = ocrFromUrlFunction(imageUrl, x1Val, y1Val, x2Val, y2Val)
+    if (len(ocrValue) > 0):
+        insertDataInTable(tableSvc, tableName, parKey, rowKeyVal, ocrValue)
+        logging.info(f"FUNCTION for {parKey} ({counter}) found value: {ocrValue}. Inserting. x1Val={x1Val}, y1Val={y1Val}, x2Val={x2Val}, y2Val={y2Val}")
+    else:
+        logging.info(f"FUNCTION ERROR with {parKey} ({counter}), no value was found. Not inserting. x1Val={x1Val}, y1Val={y1Val}, x2Val={x2Val}, y2Val={y2Val}")
 
 # Main Azure Function
 def main(req: func.HttpRequest) -> func.HttpResponse:
-
+    
     logging.info('FUNCTION jcPythonDashboardHttpTrigger1 HTTP trigger started processing a request.')
 
+    storage_connect_str = os.getenv('psfuncstoraacctAccessKey1')
     tz_LA = pytz.timezone('America/Los_Angeles') 
     datetime_LA = datetime.now(tz_LA)
-    storage_connect_str = os.getenv('psfuncstoraacctAccessKey1')
+    isOnAzure = os.getenv('WEBSITE_INSTANCE_ID')
 
-    #*********************************************************************************************
-    #1. call nodeJs jcScreenshot function and save resulting jpg to blob storage, get new blob url
+    logging.info("******************************************************************************************************")
+    logging.info("FUNCTION 1. call nodeJs jcScreenshot function and save resulting jpg to blob storage, get new blob url")
     
     todayFileName = 'dashboard_screenshot_' + datetime_LA.strftime("%Y%m%d") + '.png'
 
@@ -85,26 +107,38 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         savedBlobUrl= blob_client.url
         logging.info("FUNCTION blob saved as URL: " + savedBlobUrl)
         blob_client.close()
+        time.sleep(3)
+
+    logging.info("******************************************************************************************************")
+    logging.info("2. pass blob url and coorindates to jcPythonOcrFromImgBytesFunc to get OCR values")
 
     table_service = TableService(connection_string=storage_connect_str)
-    table_name = 'covidDashboardData'
+    table_name = os.getenv('dashboardFunctionTableName')
     rowKeyTime = datetime_LA.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
-    #*********************************************************************************************
-    #2. pass blob url and coorindates to jcPythonOcrFromImgBytesFunc to get OCR values
+    json_data = "dataString"
+    if isOnAzure:
+        json_data = json.loads(os.getenv('dashboardDataNames'))
+    with open('C:\json_data.txt','r') as file:
+        jsonDataFromFile = file.read()
+        json_data = json.loads(jsonDataFromFile)
 
-    totalDoses = ocrFromUrlFunction(savedBlobUrl, 80, 768, 342, 826)
-    if (len(totalDoses) > 0):
-        insertDataInTable(table_service, table_name, 'totalTests', rowKeyTime, totalDoses)
-        logging.info("Found totalDoses value: " + totalDoses + ". Inserting.")
-    else:
-        logging.info("ERROR with totalDoses, no value was found. Not inserting.")
+    #JSON data format:
+    """
+    {  "dataImages":
+        [
+            { "name": "sample1", "x1": 76, "y1": 91, "x2": 342, "y2": 159, "number": 1},
+            ...
+        ]
+    }
+    """
 
-    totalCases = ocrFromUrlFunction(savedBlobUrl, 76, 91, 342, 159)
-    if (len(totalCases) > 0):
-        insertDataInTable(table_service, table_name, 'totalTests', rowKeyTime, totalCases)
-        logging.info("Found totalCases value: " + totalCases + ". Inserting.")
-    else:
-        logging.info("ERROR with totalCases, no value was found. Not inserting.")
+    dataList = json_data["dataImages"] 
+    for oneItem in dataList:
+        oneDict = dict(oneItem)
+        #logging.info(str(oneDict["name"]))
+        dataSave(table_service, savedBlobUrl, table_name, oneDict["name"], rowKeyTime, oneDict["x1"], oneDict["y1"], oneDict["x2"], oneDict["y2"])
 
-    return func.HttpResponse("FUNCTION jcPythonDashboardHttpTrigger1 executed successfully by HTTP trigger.", status_code=200)
+    returnMsg = "FUNCTION jcPythonDashboardHttpTrigger1 executed successfully by HTTP trigger."
+    logging.info(returnMsg)
+    return func.HttpResponse(returnMsg, status_code=200)
