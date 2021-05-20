@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------
-# JOHN C
+# JOHN C - jcPythonDashboardHttpTrigger1
 #
 # THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES 
@@ -45,7 +45,7 @@ def ocrFromUrlFunction(urlValue, x1Val, y1Val, x2Val, y2Val):
 
     response = requests.get(ocrFuncUrl, timeout=60)
     ocrFoundValue = response.text
-    time.sleep(2)
+    time.sleep(8)
     if (ocrFoundValue.find("404 Not Found") >= 0):
         logging.info("Cognitive service returned 404 not found error")
         return ""
@@ -62,9 +62,9 @@ def insertDataInTable(tableSvc, tableName, partitionKey, rowKey, itemValue):
 def dataSave(tableSvc, imageUrl, tableName, parKey, rowKeyVal, x1Val, y1Val, x2Val, y2Val):
     global counter
     ocrValue = ocrFromUrlFunction(imageUrl, x1Val, y1Val, x2Val, y2Val)
-    if (len(ocrValue) > 0):
-        insertDataInTable(tableSvc, tableName, parKey, rowKeyVal, ocrValue)
+    if (len(ocrValue) > 0) and (ocrValue.lower().find("error") == -1):
         logging.info(f"FUNCTION for {parKey} ({counter}) found value: {ocrValue}. Inserting. x1Val={x1Val}, y1Val={y1Val}, x2Val={x2Val}, y2Val={y2Val}")
+        insertDataInTable(tableSvc, tableName, parKey, rowKeyVal, ocrValue)
     else:
         logging.info(f"FUNCTION ERROR with {parKey} ({counter}), no value was found. Not inserting. x1Val={x1Val}, y1Val={y1Val}, x2Val={x2Val}, y2Val={y2Val}")
 
@@ -117,11 +117,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     rowKeyTime = datetime_LA.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
     json_data = "dataString"
-    if isOnAzure:
+    if len(isOnAzure) > 0:
         json_data = json.loads(os.getenv('dashboardDataNames'))
-    with open('C:\json_data.txt','r') as file:
-        jsonDataFromFile = file.read()
-        json_data = json.loads(jsonDataFromFile)
+    else:
+        with open('C:\json_data.txt','r') as file:
+            jsonDataFromFile = file.read()
+            json_data = json.loads(jsonDataFromFile)
 
     #JSON data format:
     """
@@ -138,6 +139,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         oneDict = dict(oneItem)
         #logging.info(str(oneDict["name"]))
         dataSave(table_service, savedBlobUrl, table_name, oneDict["name"], rowKeyTime, oneDict["x1"], oneDict["y1"], oneDict["x2"], oneDict["y2"])
+        logging.info(" ")
 
     returnMsg = "FUNCTION jcPythonDashboardHttpTrigger1 executed successfully by HTTP trigger."
     logging.info(returnMsg)

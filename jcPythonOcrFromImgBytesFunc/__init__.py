@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------
-# JOHN C
+# JOHN C - jcPythonOcrFromImgBytesFunc
 #
 # THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES 
@@ -92,7 +92,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             dataToUse = buf.getvalue()
             #dataToUse:  <class 'bytes'>
 
-            logging.info("dataToUse length: " + str(len(dataToUse)))
+            logging.info("Input Data length in Bytes: " + str(len(dataToUse)))
 
             #post request to endpoint with 
             response = requests.request("POST", url, headers=headersToUse, data=dataToUse)
@@ -100,7 +100,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             if (response.status_code != 202):
                 logging.info("FUNCTION ERROR - response.content:\n" + str(response.content))
                 logging.info("FUNCTION ERROR - response.content:\n" + str(response.headers))
-                return func.HttpResponse("FUNCTION ERROR", status_code=response.status_code) 
+                return func.HttpResponse("", status_code=response.status_code)
             
             # get OCR result from endpoint, check for completion one per second 
             while True:

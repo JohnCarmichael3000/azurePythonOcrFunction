@@ -1,7 +1,16 @@
 # Do not include azure-functions-worker as it may conflict with the Azure Functions platform
+#azure-functions
+#azure.cognitiveservices.vision.computervision
+#azure.cosmosdb.table
+#azure-storage-blob
+#azure.storage
+#Pillow
+#datetime
+#pytz
 
 azure-functions
-azure.cognitiveservices.vision.computervision
+azure-cognitiveservices-vision-computervision
+azure-cosmosdb-table
+azure-storage-blob
 Pillow
-azure-storage
-
+pytz
