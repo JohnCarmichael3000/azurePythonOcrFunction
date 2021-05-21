@@ -20,9 +20,8 @@ import requests
 import time
 import azure.functions as func
 from azure.cosmosdb.table.tableservice import TableService
-from azure.storage.blob import BlobServiceClient, ContentSettings
-from datetime import datetime
-from PIL import Image
+from datetime import datetime, timedelta
+from pprint import pprint
 
 #
 # Azure Function - demonstrate how to use Microsoft Table Storage and Blob Container services to read/save text data and blob data
@@ -35,17 +34,19 @@ from PIL import Image
 #
 
 counter = 0
+betweenOcrSeconds = int(os.getenv('betweenOcrSeconds'))
 
 # Call function running on Azure that identifies text (OCR) in a specified region of an image located at a specified URL location
 def ocrFromUrlFunction(urlValue, x1Val, y1Val, x2Val, y2Val):
     global counter
+    global betweenOcrSeconds
     ocrFuncUrl = f"{os.getenv('ocrFromImageUrlFncUrl')}&sourceurl={urlValue}&x1={x1Val}&y1={y1Val}&x2={x2Val}&y2={y2Val}"
     counter += 1
     logging.info(f"FUNCTION ocrFuncUrl ({counter}): {ocrFuncUrl}")
 
     response = requests.get(ocrFuncUrl, timeout=60)
     ocrFoundValue = response.text
-    time.sleep(8)
+    time.sleep(betweenOcrSeconds)
     if (ocrFoundValue.find("404 Not Found") >= 0):
         logging.info("Cognitive service returned 404 not found error")
         return ""
@@ -76,54 +77,18 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     storage_connect_str = os.getenv('psfuncstoraacctAccessKey1')
     tz_LA = pytz.timezone('America/Los_Angeles') 
     datetime_LA = datetime.now(tz_LA)
-    isOnAzure = os.getenv('WEBSITE_INSTANCE_ID')
+    #datetime_LA = datetime_LA + timedelta(days=-1) #*** make sure image file exists for date selected
+
+    blob_file_name = os.getenv('blob_file_name') + datetime_LA.strftime("%Y%m%d") + '.png'
 
     logging.info("******************************************************************************************************")
-    logging.info("FUNCTION 1. call nodeJs jcScreenshot function and save resulting jpg to blob storage, get new blob url")
-    
-    todayFileName = 'dashboard_screenshot_' + datetime_LA.strftime("%Y%m%d") + '.png'
-
-    #sourceurl = os.getenv('dashBoardScreenShotFunctionUrl')
-    sourceurl = os.getenv('dashBoardScreenShotTestAsBlob')
-
-    response = requests.get(sourceurl, timeout=120)
-
-    with Image.open(io.BytesIO(response.content)) as im: 
-
-        #im: <class 'PIL.PngImagePlugin.PngImageFile'>
-        blob_service_client = BlobServiceClient.from_connection_string(storage_connect_str)
-        blob_client = blob_service_client.get_blob_client(container='dashboardblobcontainer', blob=todayFileName)
-        
-        #need to convert PIL Image to <class 'bytes'> to be able to stream to upload_blob() method 
-        imagefile = io.BytesIO()
-        im.save(imagefile, format='PNG')
-        imagedata = imagefile.getvalue()
-        #imagdata: <class 'bytes'>
-
-        #set new blob's content type show it can be downloaded as an image and not just a byte stream
-        my_content_settings = ContentSettings(content_type='image/png')
-
-        results = blob_client.upload_blob(imagedata, overwrite=True, content_settings=my_content_settings)
-        savedBlobUrl= blob_client.url
-        logging.info("FUNCTION blob saved as URL: " + savedBlobUrl)
-        blob_client.close()
-        time.sleep(3)
-
-    logging.info("******************************************************************************************************")
-    logging.info("2. pass blob url and coorindates to jcPythonOcrFromImgBytesFunc to get OCR values")
+    logging.info("2. pass image url and coorindates to jcPythonOcrFromImgBytesFunc to get OCR values")
 
     table_service = TableService(connection_string=storage_connect_str)
     table_name = os.getenv('dashboardFunctionTableName')
     rowKeyTime = datetime_LA.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
-    json_data = "dataString"
-    if len(isOnAzure) > 0:
-        json_data = json.loads(os.getenv('dashboardDataNames'))
-    else:
-        with open('C:\json_data.txt','r') as file:
-            jsonDataFromFile = file.read()
-            json_data = json.loads(jsonDataFromFile)
-
+    logging.info("Retrieve list of data points to analyze and save")
     #JSON data format:
     """
     {  "dataImages":
@@ -133,12 +98,19 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         ]
     }
     """
+    json_data = "dataString"
+    json_data = json.loads(os.getenv('dashboardDataNames'))
+    #with open('C:\json_data.txt','r') as file:
+        #jsonDataFromFile = file.read()
+        #json_data = json.loads(jsonDataFromFile)
+    logging.info(pprint(json_data))
 
     dataList = json_data["dataImages"] 
+    logging.info(pprint(dataList))
     for oneItem in dataList:
         oneDict = dict(oneItem)
-        #logging.info(str(oneDict["name"]))
-        dataSave(table_service, savedBlobUrl, table_name, oneDict["name"], rowKeyTime, oneDict["x1"], oneDict["y1"], oneDict["x2"], oneDict["y2"])
+        logging.info(str(oneDict["name"]))
+        dataSave(table_service, blob_file_name, table_name, oneDict["name"], rowKeyTime, oneDict["x1"], oneDict["y1"], oneDict["x2"], oneDict["y2"])
         logging.info(" ")
 
     returnMsg = "FUNCTION jcPythonDashboardHttpTrigger1 executed successfully by HTTP trigger."
