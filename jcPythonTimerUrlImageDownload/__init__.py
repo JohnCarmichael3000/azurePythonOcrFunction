@@ -31,7 +31,7 @@ from PIL import Image
 #  - Azure Storage Blobs client library for Python:
 #    https://docs.microsoft.com/en-us/python/api/overview/azure/storage-blob-readme?view=azure-python
 #  - Quickstart: Manage blobs with Python v12 SDK
-#  - https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-python
+#    https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-python
 #
 
 def main(mytimer: func.TimerRequest) -> None:
