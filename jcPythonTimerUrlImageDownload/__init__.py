@@ -64,5 +64,3 @@ def main(mytimer: func.TimerRequest) -> None:
         savedBlobUrl= blob_client.url
         logging.info("FUNCTION blob saved as URL: " + savedBlobUrl)
         blob_client.close()
-
-    #return func.HttpResponse("This HTTP triggered function executed successfully.", status_code=200)
