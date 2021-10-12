@@ -65,6 +65,14 @@ def dataSave(tableSvc, imageUrl, tableName, parKey, rowKeyVal, x1Val, y1Val, x2V
     ocrValue = ocrFromUrlFunction(imageUrl, x1Val, y1Val, x2Val, y2Val)
     if (len(ocrValue) > 0) and (ocrValue.lower().find("error") == -1):
         logging.info(f"FUNCTION for {parKey} ({counter}) found value: {ocrValue}. Inserting. x1Val={x1Val}, y1Val={y1Val}, x2Val={x2Val}, y2Val={y2Val}")
+        if (parKey == 'lastUpdated'):
+            orig_value = ocrValue
+            try:
+                date_str = ocrValue.replace('.', '').replace(' pm', ':00 pm').replace(' am', ':00 am').replace(',', '')
+                date_object = datetime.strptime(date_str, '%b %d %Y %I:%M:%S %p')
+                ocrValue = date_object.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                ocrValue = orig_value 
         insertDataInTable(tableSvc, tableName, parKey, rowKeyVal, ocrValue)
     else:
         logging.info(f"FUNCTION ERROR with {parKey} ({counter}), no value was found. Not inserting. x1Val={x1Val}, y1Val={y1Val}, x2Val={x2Val}, y2Val={y2Val}")
