@@ -98,6 +98,10 @@ def main(souceValues: str) -> str:
                     #b'{"error":{"code":"429","message": "Requests to the Get Read Result Operation under Computer Vision API (v3.1) have exceeded 
                     #rate limit of your current ComputerVision S1 pricing tier. Please retry after 1 second. Please contact Azure support service if 
                     #you would like to further increase the default rate limit."}}'
+
+                    #js: deadline = moment.utc(context.df.curretnUtcDateTime).add(1, 'h')
+                    #yield context.df.createTimer(deadline.toDate());
+                    #this works but fix/check to ensure proper Az Function sleeping
                     time.sleep(5)
                     res = requests.request("GET", response.headers['Operation-Location'], headers=headersToUse)
 
