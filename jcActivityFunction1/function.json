@@ -1,0 +1,9 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "souceValues",
+      "type": "activityTrigger",
+      "direction": "in"
+    }  ]
+}
