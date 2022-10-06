@@ -1,12 +1,14 @@
 # azurePythonOcrFunction
 
-Various Azure Functions written in Python that use Azure Cognitive Services OCR, Azure Storage, Selenium
+Various Azure Functions written in Python, Node.js that use Azure Cognitive Services OCR, Azure Storage, Selenium
+
+![diagram](jc1-diagram.png)
 
 - jcDashboardScreenshotHttpTrigger1
 Python - http trigger function. Calls nodeJs Selenium screen shot function and saves image result to blob storage container.
 
 - jcPythonDashboardHttpTrigger1
-Python - http trigger function. Durable Function uses fanout functions pattern to process multiple data regions specified in json stored in Env-var in parallel. Does OCR analysis on each region of image URL (can be any url eg blob storage, internet) and store OCR result text in Azure Table.
+Python - http trigger function. Durable Function uses fan-out fan-in function pattern to process multiple data regions specified in json stored in Env-var in parallel. Does OCR analysis on each region of image URL (can be any url eg blob storage, internet) and store OCR result text in Azure Table.
 
   {  "dataImages":
       [
