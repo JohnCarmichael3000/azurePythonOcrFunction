@@ -2,7 +2,7 @@
 
 Various Azure Functions written in Python, Node.js that use Azure Cognitive Services OCR, Azure Storage, Selenium
 
-![diagram](jc1-diagram.png)
+![diagram](jc1-diagram1.png)
 
 - jcDashboardScreenshotHttpTrigger1
 Python - http trigger function. Calls nodeJs Selenium screen shot function and saves image result to blob storage container.
